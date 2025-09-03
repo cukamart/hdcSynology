@@ -2,8 +2,10 @@ import string
 import random
 import subprocess
 import os
+import requests
+from bs4 import BeautifulSoup
 
-def rar_compress_with_profile(input_file, profile="HDC", winrar_path=r"C:\Program Files\WinRAR\WinRAR.exe"):
+def rar_compress_with_profile(input_file, movie, profile="HDC", winrar_path=r"C:\Program Files\WinRAR\WinRAR.exe"):
 
     if not os.path.exists(input_file):
         raise FileNotFoundError(f"Input file not found: {input_file}")
@@ -34,7 +36,7 @@ def rar_compress_with_profile(input_file, profile="HDC", winrar_path=r"C:\Progra
     part_sizes_mb.append(last_part_size_mb)
 
     # Build first line string
-    total_gb = round(adjusted_size_mb / 1024, 1)
+    total_gb = round(file_size_mb / 1024, 1)
     if num_parts == 1:
         first_line = f"{total_gb} GB | single archive | 5% recovery"
     else:
@@ -72,7 +74,25 @@ def rar_compress_with_profile(input_file, profile="HDC", winrar_path=r"C:\Progra
     subprocess.run(cmd, check=True)
 
     # Build .txt content
-    txt_content = generate_template(first_line, password)
+    txt_content = """[center][color=#4baddc][size=180][b]Mummies / Mumie / 1080p / DD+ 5.1 EN,CZ / 2023[/b][/size][/color][/center]
+
+
+
+[center][color=#FFFFFF][size=120]Release:[/size][/color] [color=#747474][size=120]Mummies.2023.1080p.WEB-DL.DD+5.1.H.264-CMRG[/size][/color]
+[color=#FFFFFF][size=120]Původ CZ  stopy:[/size][/color] [color=#74d4d3][size=120]VOD[/size][/color] 
+[color=#FFFFFF][size=120]Nástroje:[/size][/color] [color=#747474][size=120]WinRAR 7.13, MediaInfo 25.07, FFmpeg, SubtitleEdit, MKvToolNix 93.00[/size][/color][center]
+
+
+[center][img]https://i.ibb.co/QF8Gj9Lp/bnsdp-PZton-Wd-O3-AUh-Rl-Ans9u-UYn.jpg[/img][/center]
+
+[center][csfd]https://www.csfd.cz/film/1250762-mumie/[/csfd]   [imdb]https://www.imdb.com/title/tt23177868/[/imdb]    [tmdb]https://www.themoviedb.org/movie/816904-momias[/tmdb][/center]
+"""
+    txt_content += "\n\n"
+    txt_content += csfd_search(movie)
+    txt_content += "\n\n"
+    txt_content += media_info_generate()
+    txt_content += "\n\n"
+    txt_content += generate_template(first_line, password)
 
     # Save txt_content to .txt
     password_file = os.path.join(output_dir, os.path.splitext(archive_name)[0] + ".txt")
@@ -115,8 +135,162 @@ def generate_random_string(length):
     return ''.join(random.choice(chars) for _ in range(length))
 
 
+def csfd_search(query):
+    # build search URL
+    search_url = f"https://www.csfd.cz/hledat/?q={query.replace(' ', '+')}"
+    headers = {"User-Agent": "Mozilla/5.0"}  # pretend to be browser
+
+    # fetch page
+    response = requests.get(search_url, headers=headers)
+    response.raise_for_status()
+
+    # parse results
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # find first film link in search results
+    first_film_link = soup.select_one("a.film-title-name")
+    if not first_film_link:
+        print("No film found!")
+        exit()
+
+    film_url = "https://www.csfd.cz" + first_film_link["href"]
+    film_title = first_film_link.text.strip()
+
+    print(f"✅ First film found: {film_title} -> {film_url}")
+
+    film_response = requests.get(film_url, headers={"User-Agent": "Mozilla/5.0"})
+    film_response.raise_for_status()
+    film_soup = BeautifulSoup(film_response.text, "html.parser")
+    # print(film_soup.prettify())
+
+    # --- Genres ---
+    genres_elem = film_soup.select_one("div.genres")
+    if genres_elem:
+        genres = [a.text.strip() for a in genres_elem.find_all("a")]
+    else:
+        genres = []
+
+    # --- Origin, year, runtime ---
+    origin_elem = film_soup.select_one("div.origin")
+    if origin_elem:
+        origin_text = " ".join(origin_elem.get_text().split())  # normalize spaces
+    else:
+        origin_text = ""
+
+    # Example: "USA, 1999, 136 min (Alternativní 131 min)"
+    parts = [p.strip() for p in origin_text.split(",")]
+
+    country = parts[0] if len(parts) > 0 else ""
+    year = parts[1] if len(parts) > 1 else ""
+    runtime = ", ".join(parts[2:]).strip() if len(parts) > 2 else ""
+
+    # --- First 3 actors from "Hrají:" ---
+    actors_divs = film_soup.select("div.creators div")
+    actors = []
+    for div in actors_divs:
+        header = div.find("h4")
+        if header and "Hrají" in header.text:
+            actor_links = div.find_all("a")
+            actors = [a.text.strip() for a in actor_links][:3]  # first 3 actors
+            break
+
+    rating_elem = film_soup.select_one("div.film-rating-average")
+    if rating_elem:
+        rating = rating_elem.text.strip()  # "46%" as string
+    else:
+        rating = "Unknown"
+
+    plot_elem = film_soup.select_one("div.plot-full p")
+    if plot_elem:
+        # Get the text, strip extra spaces
+        plot_text = plot_elem.get_text(separator=" ", strip=True)
+    else:
+        plot_text = "No plot found"
+
+    # print("Plot:", plot_text)
+    #
+    # # --- Print results ---
+    # print("Genres:", ", ".join(genres))
+    # print("Country:", country)
+    # print("Year:", year)
+    # print("Runtime:", runtime)
+    # print("Actors:", ", ".join(actors))
+    # print("Rating:", rating)
+
+    # --- Format output ---
+    actors_str = ", ".join(actors)
+    if len(actors) == 3:
+        actors_str += "..."
+
+    formatted_output = f"""
+    [center][color=#ffb140][size=120]-------------------------ČSFD-------------------------
+    {", ".join(genres)}
+    {country}, {year}, {runtime}
+    {actors_str}
+    ČSFD rating: [b]{rating}[/b][/color][/center]
+
+    [center][color=#ffb140]{plot_text}[/size][/color][/center]
+
+    [center][color=#ffb140]---------------------------------------------------------[/color][/center]
+    
+    [center][screen][/screen][/center]
+    
+    [center][/center]"""
+
+    print(formatted_output)
+
+    if formatted_output:
+        print("✅ Found movie:")
+    else:
+        print("❌ No result found.")
+
+    return formatted_output
+
+
+def media_info_generate():
+    global result
+    # Path to MediaInfo cli executable
+    mediainfo_path = r"C:\Program Files\MediaInfo\cli\MediaInfo.exe"
+
+    try:
+        result = subprocess.run(
+            [mediainfo_path, "--Output=Text", input_mkv],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        output_text = result.stdout
+
+        # Replace the "Complete name" line with just the filename
+        lines = output_text.splitlines()
+        for i, line in enumerate(lines):
+            if line.startswith("Complete name"):
+                lines[i] = f"Complete name                            : {movie}.mkv"
+                break
+
+        output_text = "\n".join(lines)
+
+        return f"[center][rozklikavaciinfo][color=#ffb140]\n\n{output_text}\n\n[/color][/rozklikavaciinfo][/center]"
+
+
+    except subprocess.CalledProcessError as e:
+        print("❌ MediaInfo failed:", e.stderr)
+    except FileNotFoundError:
+        print("❌ Could not find MediaInfo CLI at:", mediainfo_path)
+
+
+
+
 # Example usage
 if __name__ == "__main__":
-    input_mkv = r"C:\Users\cukam\Downloads\Day of Reckoning 2025.mkv"
+    path = r"C:\Users\cukam\Downloads\\"
+    movie = "Day of Reckoning 2025"
+    # result = csfd_search(movie)
 
-    rar_compress_with_profile(input_mkv)
+    input_mkv = os.path.join(path, f"{movie}.mkv")
+
+    rar_compress_with_profile(input_mkv, movie)
+
+
+# pip install requests beautifulsoup4
