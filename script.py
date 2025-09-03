@@ -223,19 +223,19 @@ def csfd_search(query):
         actors_str += "..."
 
     formatted_output = f"""
-    [center][color=#ffb140][size=120]-------------------------ČSFD-------------------------
-    {", ".join(genres)}
-    {country}, {year}, {runtime}
-    {actors_str}
-    ČSFD rating: [b]{rating}[/b][/color][/center]
+[center][color=#ffb140][size=120]-------------------------ČSFD-------------------------
+{", ".join(genres)}
+{country}, {year}, {runtime}
+{actors_str}
+ČSFD rating: [b]{rating}[/b][/color][/center]
 
-    [center][color=#ffb140]{plot_text}[/size][/color][/center]
+[center][color=#ffb140]{plot_text}[/size][/color][/center]
 
-    [center][color=#ffb140]---------------------------------------------------------[/color][/center]
-    
-    [center][screen][/screen][/center]
-    
-    [center][/center]"""
+[center][color=#ffb140]---------------------------------------------------------------------[/color][/center]
+
+[center][screen][/screen][/center]
+
+[center][/center]"""
 
     print(formatted_output)
 
@@ -257,6 +257,7 @@ def media_info_generate():
             [mediainfo_path, "--Output=Text", input_mkv],
             capture_output=True,
             text=True,
+            encoding="utf-8",
             check=True
         )
 
@@ -285,11 +286,10 @@ def media_info_generate():
 # Example usage
 if __name__ == "__main__":
     path = r"C:\Users\cukam\Downloads\\"
-    movie = "Day of Reckoning 2025"
+    movie = "Ice Road Vengeance"
     # result = csfd_search(movie)
 
     input_mkv = os.path.join(path, f"{movie}.mkv")
-
     rar_compress_with_profile(input_mkv, movie)
 
 
