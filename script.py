@@ -1,25 +1,21 @@
-import string
-import random
-import subprocess
 import os
-import requests
-from bs4 import BeautifulSoup
 
 from CSFDscraper import CSFDscraper
 from IMDbScrapper import IMDbScraper
 from MediaInfoWrapper import MediaInfoWrapper
+from TMDbScraper import TMDbScraper
 from WinrarWrapper import WinRarWrapper
 
 if __name__ == "__main__":
     path = r"C:\Users\cukam\Downloads\\"
-    movie = "Vinník 2021"
+    movie = "Viník 2021"
     input_mkv = os.path.join(path, f"{movie}.mkv")
 
     csfd = CSFDscraper(movie)
     imdb = IMDbScraper(movie)
+    tmdb = TMDbScraper(movie)
     media_info = MediaInfoWrapper(input_mkv, movie)
     winrar = WinRarWrapper(input_mkv)
-    template = winrar.generate_template()
 
     txt_content = f"""[center][color=#ffb140][size=180][b]Mummies / {movie} / {media_info.get_resolution_label()} / DD+ 5.1 EN,CZ / {csfd.get_year()}[/b][/size][/color][/center]
 
@@ -33,7 +29,7 @@ if __name__ == "__main__":
 
 [center][img][/img][/center]
 
-[center][csfd]{csfd.get_film_url()}[/csfd]   [imdb]{imdb.get_film_url()}[/imdb]    [tmdb][/tmdb][/center]"""
+[center][csfd]{csfd.get_film_url()}[/csfd]   [imdb]{imdb.get_film_url()}[/imdb]    [tmdb]{tmdb.get_film_url()}[/tmdb][/center]"""
     txt_content += "\n\n\n"
     txt_content += csfd.get_csfd_template()
     txt_content += "\n\n"
