@@ -1,0 +1,11 @@
+# PyCharm/IDE files
+.idea/
+*.iml
+
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Optional: if you want to ignore virtual environment
+venv/
+.env
