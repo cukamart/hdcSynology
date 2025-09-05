@@ -63,6 +63,10 @@ class CSFDscraper:
         rating_elem = film_soup.select_one("div.film-rating-average")
         rating = rating_elem.text.strip() if rating_elem else "Unknown"
 
+        if rating.endswith("%"):
+            if int(rating.rstrip("%")) > 69:
+                rating += " 🔥"
+
         # --- Plot ---
         plot_elem = film_soup.select_one("div.plot-full p")
         plot_text = plot_elem.get_text(separator=" ", strip=True) if plot_elem else "No plot found"

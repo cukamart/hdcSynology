@@ -8,7 +8,7 @@ from WinrarWrapper import WinRarWrapper
 
 if __name__ == "__main__":
     path = r"C:\Users\cukam\Downloads\\"
-    movie = "Znásilnění 1988"
+    movie = "Mlha 2007"
     input_mkv = os.path.join(path, f"{movie}.mkv")
 
     csfd = CSFDscraper(movie)
@@ -17,7 +17,7 @@ if __name__ == "__main__":
     media_info = MediaInfoWrapper(input_mkv, movie)
     winrar = WinRarWrapper(input_mkv)
 
-    txt_content = f"""[center][color=#ffb140][size=180][b]Mummies / {movie} / {media_info.get_resolution_label()} / DD+ 5.1 EN,CZ / {csfd.get_year()}[/b][/size][/color][/center]
+    txt_content = f"""[center][color=#ffb140][size=180][b]Mummies / {tmdb.get_movie()} / {media_info.get_resolution_label()} / DD+ 5.1 EN,CZ / {csfd.get_year()}[/b][/size][/color][/center]
 
 
 

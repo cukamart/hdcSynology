@@ -28,3 +28,6 @@ class TMDbScraper:
 
     def get_film_url(self):
         return self.film_url
+
+    def get_movie(self):
+        return self.movie
