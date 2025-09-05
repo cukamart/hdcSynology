@@ -2,7 +2,6 @@ import os
 import subprocess
 import random
 import string
-from collections import Counter
 
 
 class WinRarWrapper:
@@ -26,7 +25,7 @@ class WinRarWrapper:
 
     def prepare_metadata(self):
         """Prepare first line, password, and archive path, without compression"""
-        # --- Determine number of parts ---
+        # --- Decide number of parts (same thresholds as before) ---
         if self.adjusted_size_mb < 5000:
             num_parts = 1
         elif 5000 <= self.adjusted_size_mb < 8000:
@@ -37,32 +36,59 @@ class WinRarWrapper:
             num_parts = 4
         else:
             num_parts = 5
+        self.num_parts = num_parts
 
-        volume_size_mb = self.adjusted_size_mb / num_parts + 5
+        # --- Byte-accurate math & safe volume size ---
+        total_bytes_est = int(round(self.file_size_bytes * 1.05))  # estimate final with 5% recovery
+        lower = (total_bytes_est + num_parts - 1) // num_parts  # ceil(total/N)
+        if num_parts > 1:
+            upper = (total_bytes_est - 1) // (num_parts - 1)  # floor(< total/(N-1))
+        else:
+            upper = total_bytes_est
 
-        # --- Build list of part sizes ---
-        part_sizes_mb = [int(round(volume_size_mb))] * (num_parts - 1)
-        last_part_size_mb = int(round(self.adjusted_size_mb - sum(part_sizes_mb)))
-        part_sizes_mb.append(last_part_size_mb)
+        # Safety margin: 64 MiB or 0.5% of estimated-per-part, whichever is bigger
+        per_part_est = total_bytes_est / max(1, num_parts)
+        safety = max(64 * 1024 * 1024, int(0.005 * per_part_est))
 
-        # --- First line string ---
-        total_gb = round(self.file_size_mb / 1024, 1)
+        # Start from lower bound + safety, but clamp below upper bound
+        s_bytes = lower + safety
+        if num_parts > 1 and s_bytes >= upper:
+            s_bytes = max(lower, upper - safety)
+
+        # Final volume size for WinRAR (in bytes, to avoid unit drift)
+        self.volume_size_bytes = int(s_bytes)
+        self.volume_size_str = None if num_parts == 1 else f"-v{self.volume_size_bytes}b"
+
+        # --- Predict part sizes for display (based on estimate) ---
         if num_parts == 1:
+            part_sizes_bytes = [total_bytes_est]
+        else:
+            full = num_parts - 1
+            part_sizes_bytes = [self.volume_size_bytes] * full
+            last = max(1, total_bytes_est - self.volume_size_bytes * full)
+            part_sizes_bytes.append(last)
+
+        # Build first line (GB, 2 decimals)
+        total_gb = round(self.file_size_bytes / (1024 ** 3), 2)
+        parts_gb = [round(x / (1024 ** 3), 2) for x in part_sizes_bytes]
+
+        if len(parts_gb) == 1:
+            # Single archive
             self.first_line = f"{total_gb} GB | single archive | 5% recovery"
         else:
-            counts = Counter(part_sizes_mb)
-            parts_str = " + ".join(f"{count}× {size} MB" for size, count in counts.items())
-            self.first_line = f"{total_gb} GB | {parts_str} | 5% recovery"
+            main_part = parts_gb[0]
+            main_count = len(parts_gb) - 1
+            last_part = parts_gb[-1]
 
-        # --- Volume size string ---
-        self.volume_size_str = None if self.adjusted_size_mb < 5000 else f"-v{int(volume_size_mb)}m"
+            if abs(main_part - last_part) < 0.01:  # all parts roughly equal
+                self.first_line = f"{total_gb} GB | {len(parts_gb)}x {main_part} GB | 5% recovery"
+            else:
+                self.first_line = f"{total_gb} GB | {main_count}x {main_part} GB + 1x {last_part} GB | 5% recovery"
 
-        # --- Archive path ---
+        # --- Archive path & password (unchanged) ---
         random_name = self._generate_random_string(30)
         output_dir = os.path.dirname(self.input_file)
         self.archive_path = os.path.join(output_dir, f"{random_name}.rar")
-
-        # --- Generate password ---
         self.password = self._generate_password(30)
 
     def compress(self):

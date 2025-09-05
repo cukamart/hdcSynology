@@ -8,7 +8,7 @@ from WinrarWrapper import WinRarWrapper
 
 if __name__ == "__main__":
     path = r"C:\Users\cukam\Downloads\\"
-    movie = "Viník 2021"
+    movie = "Znásilnění 1988"
     input_mkv = os.path.join(path, f"{movie}.mkv")
 
     csfd = CSFDscraper(movie)
